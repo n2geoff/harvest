@@ -1,0 +1,19 @@
+{
+    "name": "n2geoff/harvest",
+    "description": "a minimal http/restful client wrapper",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "N2geoff\\Harvest\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Geoff Doty",
+            "homepage": "https://github.com/n2geoff"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {}
+}
