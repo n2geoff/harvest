@@ -2,20 +2,21 @@
 
 /**
  * Harvest HTTP Client
- * 
- * @author Geoff Doty <n2geoff@gmail.com>
+ *
+ * @author Geoff Doty <https://github.com/n2geoff>
+ * @copyright 2013 Geoff Doty
+ * @license MIT
  */
 class Harvest {
 
-    private $headers = array();
-    private $options = array();
+    private $headers = [];
+    private $options = [];
     private $session = NULL;
-
     private $server  = FALSE;
     private $debug   = FALSE;
-    private $output  = array();
+    private $output  = [];
 
-    public function __construct($config = array())
+    public function __construct($config =[])
     {
         if(!empty($config))
         {
@@ -35,6 +36,12 @@ class Harvest {
                 $this->header($config['headers']);
             }
 
+            if(isset($config['auth']))
+            {
+                $this->option('HTTPAUTH', CURLAUTH_BASIC);
+                $this->option('USERPWD', $config['auth']);
+            }
+
         }
     }
 
@@ -42,18 +49,18 @@ class Harvest {
     {
         $this->option(CURLOPT_CUSTOMREQUEST, 'HEAD');
 
-        $result = $this->request($url);
+       return $this->request($url);
     }
 
-    public function get($url) 
+    public function get($url)
     {
         $this->option(CURLOPT_CUSTOMREQUEST, 'GET');
 
-        $result = $this->request($url);
+        return $this->request($url);
     }
 
-    public function post($url, $data = array(), $headers = array()) 
-    {      
+    public function post($url, $data = array(), $headers = array())
+    {
         $this->option(CURLOPT_RETURNTRANSFER, TRUE);
         $this->option(CURLOPT_CUSTOMREQUEST, 'POST');
 
@@ -65,7 +72,7 @@ class Harvest {
         return $this->request($url, $data, $headers);
     }
 
-    public function put($url, $data = array(), $headers = array()) 
+    public function put($url, $data = array(), $headers = array())
     {
         $this->option(CURLOPT_POST, TRUE);
         $this->option(CURLOPT_CUSTOMREQUEST, 'PUT');
@@ -76,19 +83,19 @@ class Harvest {
             $this->option(CURLOPT_POSTFIELDS, http_build_query($data, NULL, '&'));
         }
 
-        $result = $this->request($url, $data);
+        return $this->request($url, $data);
     }
-    
-    public function delete($url, $data = '', $headers = array()) 
+
+    public function delete($url, $data = '', $headers = array())
     {
         $this->option(CURLOPT_CUSTOMREQUEST, 'DELETE');
 
-        $result = $this->request($url);
+        return $this->request($url);
     }
 
     public function header($headers, $value = NULL)
     {
-        //if array it is key value
+        // if array it is key => value
         if(is_array($headers))
         {
             foreach($headers as $key => $value)
@@ -96,22 +103,14 @@ class Harvest {
                 $this->headers[] = "{$key}: {$value}";
             }
         }
-        else // your passing a correct
+        else // your passing a $headers(key) => value
         {
-            $this->headers[] = "{$key}: {$value}";
+            $this->headers[] = "{$headers}: {$value}";
         }
     }
 
-    public function headers($headers = array())
+    public function setHeaders()
     {
-        if(!empty($headers) && is_array($headers))
-        {
-            foreach($headers as $key => $value)
-            {
-                $this->headers[] = "{$key}: {$value}";
-            }
-        }
-
         $this->option(CURLOPT_HTTPHEADER, $this->headers);
     }
 
@@ -125,18 +124,13 @@ class Harvest {
         $this->options[$code] = $value;
     }
 
-    public function options($options = array())
+    public function setOptions()
     {
-        foreach ($options as $option_code => $option_value)
-        {
-            $this->option($option_code, $option_value);
-        }
-
         // set all curl options provided
         curl_setopt_array($this->session, $this->options);
     }
 
-    private function request($url, $data = array(), $headers = array()) 
+    private function request($url, $data = array(), $headers = array())
     {
         if($this->server)
         {
@@ -144,9 +138,9 @@ class Harvest {
         }
 
         //ssl enabled
-        if(($is_https = stripos($url, 'https') !== FALSE))
+        if((stripos($url, 'https') !== FALSE))
         {
-            $this->option(CURLOPT_SSLVERSION, 3);
+            $this->option(CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
             $this->option(CURLOPT_SSL_VERIFYPEER, FALSE);
             $this->option(CURLOPT_SSL_VERIFYHOST, 2);
         }
@@ -158,47 +152,54 @@ class Harvest {
 
         $this->session = curl_init($url);
 
-        //set header options
-        $this->headers();
+        // set header options
+        $this->setHeaders();
 
-        //apply curl options to connection
-        $this->options();
+        // set connection curl options
+        $this->setOptions();
 
         //execute curl transaction
         $result = curl_exec($this->session);
 
-        //$result = $this->response(curl_exec($this->session));
-        
         if($this->debug)
         {
-            //get sent headers
-            $headers_out = curl_getinfo($this->session, CURLINFO_HEADER_OUT);
-            $request_options = curl_getinfo($this->session);
-            
-            //$this->output[] = $headers_out;
-            //$this->output[] = $request_options;
+            // get sent headers
+            $this->output[] = curl_getinfo($this->session, CURLINFO_HEADER_OUT);
 
-            var_dump($headers_out, $request_options);
+            // get curl request options
+            $this->output[] = curl_getinfo($this->session);
+
+            // check for errors
+            if(curl_errno($this->session))
+            {
+                $this->output['error'] = curl_error($this->session);
+            }
+
+            echo "<pre>";
+            var_dump($this->output);
+            echo "</pre>";
         }
 
-        //close connection
+        // close connection
         $this->_close();
 
-        return $result;
+        // return response
+        return $this->response($result);
     }
 
     private function _close()
     {
         curl_close($this->session);
 
-        //$this->headers = array();
-        $this->options = array();
+        $this->headers = [];
+        $this->options = [];
         $this->session = NULL;
     }
 
-    private function response($result) 
+    private function response($result)
     {
-        return json_decode($result);
+        // TODO:  check if there is a better response object format to use
+        return $result;
     }
 
     private function is_curl_installed()
