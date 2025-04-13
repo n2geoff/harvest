@@ -1,5 +1,7 @@
 <?php
 
+namespace N2geoff\Harvest;
+
 /**
  * Harvest HTTP Client
  *
